@@ -1,0 +1,1 @@
+@tailwind base;\n@tailwind components;\n@tailwind utilities;\n\n:root{\n  --bg: #0b1020;\n  --fg: #fdfdfd;\n}\nbody{\n  background: var(--bg);\n  color: var(--fg);\n}\n

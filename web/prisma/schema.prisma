@@ -1,0 +1,193 @@
+// datasource
+Datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+Generator client {
+  provider = "prisma-client-js"
+}
+
+enum Level {
+  beginner
+  basic
+  intermediate
+  advanced
+}
+
+enum Language {
+  en
+  it
+  sa // Sanskrit
+}
+
+model User {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  emailVerified  DateTime?
+  passwordHash   String
+  name           String?
+  createdAt      DateTime @default(now())
+
+  profile        Profile?
+  meditations    Meditation[]
+  sessions       MeditationSession[]
+
+  // next-auth
+  accounts       Account[]
+  sessionsAuth   Session[]
+}
+
+model Profile {
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  user                User     @relation(fields: [userId], references: [id])
+
+  firstName           String?
+  lastName            String?
+  dob                 DateTime?
+  country             String?
+  username            String? @unique
+  appLanguage         Language @default(en)
+  meditationLanguage  Language @default(en)
+  level               Level    @default(beginner)
+
+  interests           Tag[]    @relation("ProfileTags", references: [id])
+
+  notifyInteresting   Boolean  @default(false)
+  notifyReminders     Boolean  @default(false)
+  reminderSchedule    Json?
+}
+
+model InvitationCode {
+  id        String  @id @default(cuid())
+  code      String  @unique
+  maxLevel  Level
+  active    Boolean @default(true)
+  createdAt DateTime @default(now())
+}
+
+model Tag {
+  id    String @id @default(cuid())
+  name  String @unique
+
+  clips VariantTag[]
+  users Profile[] @relation("ProfileTags")
+}
+
+model Clip {
+  id                String   @id @default(cuid())
+  type              String
+  number            Int
+  speaker           String
+  language          Language
+  durationSec       Int
+  silenceMultiplier Int      @default(100)
+  minLevel          Level    @default(basic)
+  maxLevel          Level    @default(advanced)
+  commonPosition    Int?     // 0-99
+  includesMovement  Boolean  @default(false)
+  speakerGender     Int?     // 0 male, 1 female
+  linkedTalkUrl     String?
+  fullMeditation    Boolean  @default(false)
+
+  mandatoryNextId   String?
+  mandatoryPrevId   String?
+  mandatoryNext     Clip?    @relation("ClipNext", fields: [mandatoryNextId], references: [id])
+  mandatoryPrev     Clip?    @relation("ClipPrev", fields: [mandatoryPrevId], references: [id])
+
+  variants          ClipVariant[]
+}
+
+model ClipVariant {
+  id           String  @id @default(cuid())
+  clipId       String
+  clip         Clip    @relation(fields: [clipId], references: [id])
+  variantNo    Int     @default(1)
+  audioUrl     String?
+  subtitlesUrl String?
+  tags         VariantTag[]
+}
+
+model VariantTag {
+  clipVariantId String
+  tagId         String
+  clipVariant   ClipVariant @relation(fields: [clipVariantId], references: [id])
+  tag           Tag         @relation(fields: [tagId], references: [id])
+
+  @@id([clipVariantId, tagId])
+}
+
+model Meditation {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id])
+  createdAt        DateTime @default(now())
+  level            Level
+  params           Json
+  totalDurationSec Int
+
+  items            MeditationItem[]
+}
+
+model MeditationItem {
+  id             String   @id @default(cuid())
+  meditationId   String
+  meditation     Meditation @relation(fields: [meditationId], references: [id])
+  order          Int
+  clipVariantId  String?
+  clipVariant    ClipVariant? @relation(fields: [clipVariantId], references: [id])
+  isSilence      Boolean @default(false)
+  durationSec    Int
+}
+
+model MeditationSession {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  meditationId    String
+  meditation      Meditation @relation(fields: [meditationId], references: [id])
+  requestedParams Json
+  sequence        Json      // array of items with timing
+  durationSec     Int
+  playedSec       Int        @default(0)
+  createdAt       DateTime   @default(now())
+}
+
+// NextAuth models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?  @db.Text
+  access_token      String?  @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?  @db.Text
+  session_state     String?
+  oauth_token_secret String? @db.Text
+  oauth_token        String? @db.Text
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
