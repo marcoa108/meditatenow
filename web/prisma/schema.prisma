@@ -8,6 +8,7 @@ generator client {
 }
 
 model User {
+  inviteCode      String?
   id             String   @id @default(cuid())
   email          String   @unique
   emailVerified  DateTime?
@@ -181,3 +182,4 @@ model VerificationToken {
 
   @@unique([identifier, token])
 }
+
