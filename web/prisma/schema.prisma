@@ -12,7 +12,7 @@ model User {
   id             String   @id @default(cuid())
   email          String   @unique
   emailVerified  DateTime?
-  passwordHash   String
+  passwordHash   String?
   name           String?
   createdAt      DateTime @default(now())
 
@@ -182,4 +182,5 @@ model VerificationToken {
 
   @@unique([identifier, token])
 }
+
 
