@@ -4,13 +4,19 @@ import { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
 
 async function main() {
-  await prisma.invitationCode.createMany({
-    data: [
-      { code: 'WELCOME-ANY', maxLevel: 'advanced', active: true },
-      { code: 'BEGINNER-ONLY', maxLevel: 'beginner', active: true },
-    ],
+  // Invitation codes (idempotent)
+  await prisma.invitationCode.upsert({
+    where: { code: 'WELCOME-ANY' },
+    update: {},
+    create: { code: 'WELCOME-ANY', maxLevel: 'advanced', active: true },
+  })
+  await prisma.invitationCode.upsert({
+    where: { code: 'BEGINNER-ONLY' },
+    update: {},
+    create: { code: 'BEGINNER-ONLY', maxLevel: 'beginner', active: true },
   })
 
+  // Tags
   await prisma.$transaction([
     prisma.tag.upsert({ where: { name: 'Wellness' }, update: {}, create: { name: 'Wellness' } }),
     prisma.tag.upsert({ where: { name: 'Depth' }, update: {}, create: { name: 'Depth' } }),
@@ -52,7 +58,7 @@ async function main() {
     },
   })
 
-  const outro = await prisma.clip.upsert({
+  await prisma.clip.upsert({
     where: { id: 'outro_en_1' },
     update: {},
     create: {
@@ -98,7 +104,7 @@ async function main() {
     update: {},
     create: {
       id: 'v_outro_1',
-      clipId: outro.id,
+      clipId: 'outro_en_1',
       variantNo: 1,
       audioUrl: null,
       subtitlesUrl: null,
@@ -114,4 +120,3 @@ main().catch((e) => {
 }).finally(async () => {
   await prisma.$disconnect()
 })
-
