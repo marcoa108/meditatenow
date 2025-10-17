@@ -23,6 +23,13 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(url)
   }
 
+  // Require onboarding (inviteCode) before accessing the app
+  if (!(token as any).inviteCode && pathname !== '/onboarding' && !pathname.startsWith('/api/onboarding')) {
+    const url = req.nextUrl.clone()
+    url.pathname = '/onboarding'
+    return NextResponse.redirect(url)
+  }
+
   return NextResponse.next()
 }
 

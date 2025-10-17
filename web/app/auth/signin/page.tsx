@@ -1,16 +1,21 @@
 ﻿'use client'
-import { FormEvent, useState } from 'react'
+import { FormEvent, useMemo, useState } from 'react'
 import { signIn } from 'next-auth/react'
 
 export default function SignInPage() {
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const callbackUrl = useMemo(() => {
+    if (typeof window === 'undefined') return '/'
+    const params = new URLSearchParams(window.location.search)
+    return params.get('callbackUrl') || '/'
+  }, [])
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
     setError(null)
-    const res = await signIn('email', { email, redirect: false })
+    const res = await signIn('email', { email, callbackUrl, redirect: false })
     if (res?.ok) setSent(true)
     else setError(res?.error ?? 'Failed to send email')
   }
