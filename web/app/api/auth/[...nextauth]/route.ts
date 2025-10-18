@@ -7,7 +7,7 @@ import { Resend } from 'resend'
 
 const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
-  session: { strategy: 'database' },
+  session: { strategy: 'jwt' },
   pages: { signIn: '/auth/signin' },
   providers: [
     EmailProvider({
@@ -25,6 +25,26 @@ const authOptions: NextAuthOptions = {
       },
     }),
   ],
+  callbacks: {
+    async jwt({ token, user }) {
+      // attach user id + inviteCode on sign-in
+      if (user) {
+        token.id = (user as any).id
+        token.inviteCode = (user as any).inviteCode ?? null
+      } else if (token?.email) {
+        // keep inviteCode fresh across requests
+        const dbUser = await prisma.user.findUnique({ where: { email: token.email as string } })
+        token.inviteCode = dbUser?.inviteCode ?? null
+      }
+      return token
+    },
+    async session({ session, token }) {
+      // expose on session for client checks
+      ;(session as any).userId = token.id
+      ;(session as any).inviteCode = (token as any).inviteCode ?? null
+      return session
+    },
+  },
   secret: process.env.NEXTAUTH_SECRET,
 }
 
