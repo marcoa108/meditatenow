@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 
 interface Item { id: string; order: number; clipVariantId: string | null; durationSec: number }
 
+import createSession from './__session'
 export default function FeelSahaj() {
   const [loading, setLoading] = useState(false)
   const [items, setItems] = useState<Item[] | null>(null)
@@ -23,7 +24,7 @@ export default function FeelSahaj() {
     setLoading(true)
     const res = await fetch('/api/meditations/feel-sahaj', { method: 'POST' })
     const data = await res.json()
-    setItems(data.items)
+    setItems(data.items); createSession(data)
     setCurrent(0)
     setRemaining(data.items[0]?.durationSec ?? 0)
     setLoading(false)
@@ -70,9 +71,9 @@ export default function FeelSahaj() {
       <h1 className="text-2xl font-semibold">I Feel Sahaj</h1>
       {!items ? (
         <div className="space-y-4">
-          <p className="opacity-80">Builds a simple meditation (intro → first meditation → outro).</p>
+          <p className="opacity-80">Builds a simple meditation.</p>
           <button disabled={loading} onClick={start} className="px-4 py-2 rounded bg-emerald-600 text-white disabled:opacity-50">
-            {loading ? 'Preparing…' : 'Start'}
+            {loading ? 'Preparing...' : 'Start'}
           </button>
         </div>
       ) : (
@@ -108,3 +109,7 @@ export default function FeelSahaj() {
     </div>
   )
 }
+
+
+
+
