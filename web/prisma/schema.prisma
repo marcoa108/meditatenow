@@ -1,24 +1,10 @@
-// datasource
-Datasource db {
+datasource db {
   provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
-Generator client {
+generator client {
   provider = "prisma-client-js"
-}
-
-enum Level {
-  beginner
-  basic
-  intermediate
-  advanced
-}
-
-enum Language {
-  en
-  it
-  sa // Sanskrit
 }
 
 model User {
@@ -48,21 +34,21 @@ model Profile {
   dob                 DateTime?
   country             String?
   username            String? @unique
-  appLanguage         Language @default(en)
-  meditationLanguage  Language @default(en)
-  level               Level    @default(beginner)
+  appLanguage         String   @default("en")
+  meditationLanguage  String   @default("en")
+  level               String   @default("beginner")
 
-  interests           Tag[]    @relation("ProfileTags", references: [id])
+  interests           Tag[]    @relation("ProfileTags")
 
   notifyInteresting   Boolean  @default(false)
   notifyReminders     Boolean  @default(false)
-  reminderSchedule    Json?
+  reminderSchedule    String?
 }
 
 model InvitationCode {
   id        String  @id @default(cuid())
   code      String  @unique
-  maxLevel  Level
+  maxLevel  String
   active    Boolean @default(true)
   createdAt DateTime @default(now())
 }
@@ -80,11 +66,11 @@ model Clip {
   type              String
   number            Int
   speaker           String
-  language          Language
+  language          String
   durationSec       Int
   silenceMultiplier Int      @default(100)
-  minLevel          Level    @default(basic)
-  maxLevel          Level    @default(advanced)
+  minLevel          String    @default("basic")
+  maxLevel          String    @default("advanced")
   commonPosition    Int?     // 0-99
   includesMovement  Boolean  @default(false)
   speakerGender     Int?     // 0 male, 1 female
@@ -95,6 +81,8 @@ model Clip {
   mandatoryPrevId   String?
   mandatoryNext     Clip?    @relation("ClipNext", fields: [mandatoryNextId], references: [id])
   mandatoryPrev     Clip?    @relation("ClipPrev", fields: [mandatoryPrevId], references: [id])
+  nextOf            Clip[]   @relation("ClipNext")
+  prevOf            Clip[]   @relation("ClipPrev")
 
   variants          ClipVariant[]
 }
@@ -107,6 +95,7 @@ model ClipVariant {
   audioUrl     String?
   subtitlesUrl String?
   tags         VariantTag[]
+  items        MeditationItem[]
 }
 
 model VariantTag {
@@ -123,11 +112,12 @@ model Meditation {
   userId           String
   user             User     @relation(fields: [userId], references: [id])
   createdAt        DateTime @default(now())
-  level            Level
-  params           Json
+  level            String
+  params           String
   totalDurationSec Int
 
   items            MeditationItem[]
+  sessions         MeditationSession[]
 }
 
 model MeditationItem {
@@ -147,8 +137,8 @@ model MeditationSession {
   user            User     @relation(fields: [userId], references: [id])
   meditationId    String
   meditation      Meditation @relation(fields: [meditationId], references: [id])
-  requestedParams Json
-  sequence        Json      // array of items with timing
+  requestedParams String
+  sequence        String      // array of items with timing
   durationSec     Int
   playedSec       Int        @default(0)
   createdAt       DateTime   @default(now())
@@ -161,15 +151,15 @@ model Account {
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String?  @db.Text
-  access_token      String?  @db.Text
+  refresh_token     String?
+  access_token      String?
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String?  @db.Text
+  id_token          String?
   session_state     String?
-  oauth_token_secret String? @db.Text
-  oauth_token        String? @db.Text
+  oauth_token_secret String?
+  oauth_token        String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
