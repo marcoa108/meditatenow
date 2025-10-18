@@ -1,0 +1,18 @@
+{
+  "common": {
+    "appName": "MeditateNow",
+    "save": "Save",
+    "saved": "Saved",
+    "settings": "Settings"
+  },
+  "settings": {
+    "title": "Settings",
+    "appLanguage": "App language",
+    "meditationLanguage": "Meditation language",
+    "updated": "Settings updated"
+  },
+  "languages": {
+    "en": "English",
+    "it": "Italian"
+  }
+}
