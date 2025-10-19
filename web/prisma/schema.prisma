@@ -35,6 +35,7 @@ model Profile {
   dob                 DateTime?
   country             String?
   username            String? @unique
+  avatarUrl           String?
   appLanguage         String   @default("en")
   meditationLanguage  String   @default("en")
   level               String   @default("beginner")
