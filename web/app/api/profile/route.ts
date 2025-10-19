@@ -1,0 +1,30 @@
+import { NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { prisma } from '@/lib/prisma'
+
+export async function POST(req: Request) {
+  const session = await getServerSession()
+  if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const me = await prisma.user.findUnique({ where: { email: session.user.email } })
+  if (!me) return NextResponse.json({ error: 'User not found' }, { status: 404 })
+
+  const body = await req.json().catch(() => ({} as any))
+  const username = (body?.username ?? null) as string | null
+  const avatarUrl = (body?.avatarUrl ?? null) as string | null
+
+  try {
+    await prisma.profile.upsert({
+      where: { userId: me.id },
+      create: { userId: me.id, username, avatarUrl },
+      update: { username, avatarUrl },
+    })
+    return NextResponse.json({ ok: true })
+  } catch (err: any) {
+    // unique constraint on username
+    if (String(err?.code) === 'P2002') {
+      return NextResponse.json({ error: 'Username taken' }, { status: 409 })
+    }
+    return NextResponse.json({ error: 'Unknown error' }, { status: 500 })
+  }
+}
