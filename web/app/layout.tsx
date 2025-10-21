@@ -10,8 +10,8 @@ export const metadata: Metadata = {
   description: 'Sahaja Yoga meditation app',
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const cookieStore = cookies();
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const cookieStore = await cookies();
   const locale = cookieStore.get('locale')?.value ?? 'en';
   const messagesMap: Record<string, any> = { en, it };
   const messages = messagesMap[locale] ?? en;
