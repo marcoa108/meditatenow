@@ -45,6 +45,7 @@ model Profile {
   notifyInteresting   Boolean  @default(false)
   notifyReminders     Boolean  @default(false)
   reminderSchedule    String?
+  reminderLastSentAt  DateTime?
 }
 
 model InvitationCode {
