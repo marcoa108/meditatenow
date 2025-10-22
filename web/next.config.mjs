@@ -1,8 +1,12 @@
-/** @type {import(''next'').NextConfig} */
+import createNextIntlPlugin from 'next-intl/plugin';
+
+const withNextIntl = createNextIntlPlugin('./i18n.ts');
+
+/** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
     serverActions: { allowedOrigins: ['*'] },
   },
 };
 
-export default nextConfig;
+export default withNextIntl(nextConfig);
