@@ -23,7 +23,7 @@ export async function middleware(req: NextRequest) {
   })
   const i18nResponse = handleI18n(req)
 
-  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) return i18nResponse
+  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) return NextResponse.next()
 
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
   if (!token) {
