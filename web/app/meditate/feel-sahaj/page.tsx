@@ -1,7 +1,7 @@
 ﻿'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-interface Item { id: string; order: number; clipVariantId: string | null; durationSec: number }
+interface Item { id: string; order: number; clipVariantId: string | null; durationSec: number; audioUrl?: string | null }
 
 export default function FeelSahaj() {
   const [loading, setLoading] = useState(false)
@@ -10,6 +10,8 @@ export default function FeelSahaj() {
   const [remaining, setRemaining] = useState(0)
   const timer = useRef<NodeJS.Timeout | null>(null)
   const [running, setRunning] = useState(false)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const [preset, setPreset] = useState<{ name: string; level: string; language: string }>({ name: 'Beginner (EN)', level: 'beginner', language: 'en' })
 
   const total = useMemo(() => (items ? items.reduce((s, i) => s + i.durationSec, 0) : 0), [items])
   const elapsed = useMemo(() => {
@@ -21,7 +23,7 @@ export default function FeelSahaj() {
 
   async function start() {
     setLoading(true)
-    const res = await fetch('/api/meditations/feel-sahaj', { method: 'POST' })
+    const res = await fetch('/api/meditations/feel-sahaj', { method: 'POST', body: JSON.stringify({ level: preset.level, language: preset.language }) })
     const data = await res.json()
     setItems(data.items)
     setCurrent(0)
@@ -50,20 +52,57 @@ export default function FeelSahaj() {
   }
 
   useEffect(() => {
-    if (running) {
+    const it = items?.[current]
+    const hasAudio = !!it?.audioUrl
+    const audio = audioRef.current
+    if (!running) {
+      if (audio && !audio.paused) audio.pause()
+      if (timer.current) { clearInterval(timer.current); timer.current = null }
+      return
+    }
+    if (hasAudio && audio) {
+      audio.src = it!.audioUrl as string
+      audio.currentTime = 0
+      audio.onended = () => {
+        setRemaining(0)
+        setCurrent((idx) => {
+          const next = idx + 1
+          if (!items || next >= items.length) { setRunning(false); return idx }
+          setRemaining(items[next].durationSec)
+          return next
+        })
+      }
+      audio.ontimeupdate = () => {
+        const dur = it!.durationSec
+        const cur = Math.floor(audio.currentTime)
+        const left = Math.max(0, dur - cur)
+        setRemaining(left)
+      }
+      audio.play().catch(() => {})
+      if (timer.current) { clearInterval(timer.current); timer.current = null }
+    } else {
+      // no audio -> use timer
       timer.current = setInterval(tick, 1000)
-    } else if (timer.current) {
-      clearInterval(timer.current)
-      timer.current = null
+      if (audio && !audio.paused) audio.pause()
     }
     return () => {
-      if (timer.current) clearInterval(timer.current)
+      if (timer.current) { clearInterval(timer.current); timer.current = null }
+      if (audio) { audio.onended = null; audio.ontimeupdate = null }
     }
-  }, [running])
+  }, [running, current, items])
 
-  function pause() { setRunning(false) }
-  function resume() { if (items && items.length) setRunning(true) }
+  function pause() { setRunning(false); const a = audioRef.current; if (a && !a.paused) a.pause() }
+  function resume() { if (items && items.length) { setRunning(true); const a = audioRef.current; if (a && a.paused && items[current]?.audioUrl) a.play().catch(() => {}) } }
   function reset() { setRunning(false); setItems(null); setCurrent(0); setRemaining(0) }
+
+  function seek(e: React.ChangeEvent<HTMLInputElement>) {
+    const a = audioRef.current
+    if (!a || !items?.[current]?.audioUrl) return
+    const val = Number(e.target.value)
+    a.currentTime = val
+    const dur = items[current].durationSec
+    setRemaining(Math.max(0, dur - val))
+  }
 
   return (
     <div className="space-y-6">
@@ -71,12 +110,24 @@ export default function FeelSahaj() {
       {!items ? (
         <div className="space-y-4">
           <p className="opacity-80">Builds a simple meditation (intro → first meditation → outro).</p>
+          <div className="flex flex-wrap gap-2 items-center">
+            <label className="text-sm opacity-80">Preset:</label>
+            <select className="bg-white/5 border border-white/10 rounded p-2" value={preset.name} onChange={(e) => {
+              const v = e.target.value
+              if (v === 'Beginner (EN)') setPreset({ name: v, level: 'beginner', language: 'en' })
+              if (v === 'Depth (EN)') setPreset({ name: v, level: 'advanced', language: 'en' })
+            }}>
+              <option>Beginner (EN)</option>
+              <option>Depth (EN)</option>
+            </select>
+          </div>
           <button disabled={loading} onClick={start} className="px-4 py-2 rounded bg-emerald-600 text-white disabled:opacity-50">
             {loading ? 'Preparing…' : 'Start'}
           </button>
         </div>
       ) : (
         <div className="space-y-4">
+          <audio ref={audioRef} />
           <div className="p-3 rounded border border-white/10">
             <div className="text-sm opacity-70">Progress</div>
             <div className="h-2 bg-white/10 rounded">
@@ -90,11 +141,17 @@ export default function FeelSahaj() {
           <div className="space-y-2">
             {items.map((it, idx) => (
               <div key={it.id} className={`p-3 rounded border ${idx === current ? 'border-emerald-500' : 'border-white/10'} flex justify-between`}>
-                <span>Step {idx + 1}</span>
+                <span>Step {idx + 1} {it.audioUrl ? '· Audio' : ''}</span>
                 <span>{idx === current ? `${remaining}s left` : `${it.durationSec}s`}</span>
               </div>
             ))}
           </div>
+          {items[current]?.audioUrl && (
+            <div className="flex items-center gap-2">
+              <input type="range" min={0} max={items[current]!.durationSec} value={items[current]!.durationSec - remaining} onChange={seek} className="w-full" />
+              <span className="text-sm opacity-70 w-12 text-right">{items[current]!.durationSec - remaining}s</span>
+            </div>
+          )}
           <div className="flex gap-2">
             {!running ? (
               <button onClick={resume} className="px-3 py-2 rounded bg-blue-600 text-white">{elapsed ? 'Resume' : 'Start'}</button>

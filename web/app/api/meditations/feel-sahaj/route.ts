@@ -61,9 +61,16 @@ export async function POST(req: NextRequest) {
     include: { items: true },
   })
 
+  // Fetch audioUrl for each item's clipVariant, if present
+  const variantIds = meditation.items.map((i) => i.clipVariantId).filter(Boolean) as string[]
+  const variants = variantIds.length
+    ? await prisma.clipVariant.findMany({ where: { id: { in: variantIds } }, select: { id: true, audioUrl: true } })
+    : []
+  const vMap = Object.fromEntries(variants.map((v) => [v.id, v.audioUrl])) as Record<string, string | null>
+
   return NextResponse.json({
     meditationId: meditation.id,
     totalDurationSec: meditation.totalDurationSec,
-    items: meditation.items.map((i) => ({ id: i.id, order: i.order, clipVariantId: i.clipVariantId, durationSec: i.durationSec })),
+    items: meditation.items.map((i) => ({ id: i.id, order: i.order, clipVariantId: i.clipVariantId, durationSec: i.durationSec, audioUrl: i.clipVariantId ? vMap[i.clipVariantId] : null })),
   })
 }
