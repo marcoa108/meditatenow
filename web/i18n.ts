@@ -1,9 +1,12 @@
 import {getRequestConfig} from 'next-intl/server'
+import en from './messages/en.json'
 
 export const locales = ['en', 'it'] as const
 export type Locale = typeof locales[number]
 
-export default getRequestConfig(async ({locale}) => ({
-  locale,
-  messages: (await import(`./messages/${locale}.json`).catch(() => import('./messages/en.json'))).default
+// Minimal static config to satisfy next-intl runtime; actual locale/messages
+// are provided via NextIntlClientProvider in app/layout.tsx
+export default getRequestConfig(() => ({
+  locale: 'en',
+  messages: en as any,
 }))
