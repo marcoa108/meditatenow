@@ -6,6 +6,7 @@ import createIntlMiddleware from 'next-intl/middleware'
 const PUBLIC_PATHS = [
   '/auth/signin',
   '/auth/signup',
+  '/onboarding',
   '/api/auth',
   '/api/health',
   '/_next',
