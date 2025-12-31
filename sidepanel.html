@@ -1,0 +1,181 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Media Notes</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <div class="sub" id="status">Looking for a player…</div>
+      </header>
+
+      <!--section class="controls">
+        <button id="play">Play</button>
+        <button id="pause">Pause</button>
+        <button id="rewind">-10s</button>
+        <button id="forward">+10s</button>
+      </section-->
+			<div class="controls">
+				<!--button id="btnPlay" class="iconBtn" title="Play">
+					<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+				</button>
+				<button id="btnPause" class="iconBtn" title="Pause">
+					<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+				</button-->
+        <div class="time" id="timeReadout" title="Current position">00:00</div>
+				<button id="btnTogglePlay" class="iconBtn" title="Play/Pause (Space)">
+					<!-- default: play icon -->
+					<svg id="playPauseIcon" viewBox="0 0 24 24" aria-hidden="true">
+						<path d="M8 5v14l11-7z"></path>
+					</svg>
+				</button>
+				<button id="btnRew" class="iconBtn" title="Back 10s">
+					<svg viewBox="0 0 24 24" aria-hidden="true">
+						<path d="M11 18V6L2.5 12 11 18zM21 18V6L12.5 12 21 18z"/>
+					</svg>
+					<span class="iconSub">10</span>
+				</button>
+				<button id="btnFwd" class="iconBtn" title="Forward 10s">
+					<svg viewBox="0 0 24 24" aria-hidden="true">
+						<path d="M3 6v12l8.5-6L3 6zM13 6v12l8.5-6L13 6z"/>
+					</svg>
+					<span class="iconSub">10</span>
+				</button>
+				<button id="recordBtn" class="recBtn" title="Record (R)">
+					<span class="recGlyph" aria-hidden="true"></span>
+				</button>
+				<button id="saveNoteTop" class="iconBtn" title="Save note (JSON export)">
+					<svg viewBox="0 0 24 24" aria-hidden="true">
+						<!-- floppy/save icon -->
+						<path d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zM7 5h8v4H7V5zm5 14H7v-6h10v6h-5z"/>
+					</svg>
+				</button>
+			</div>
+
+      <section class="note">
+
+        <div class="chakraSection">
+          <div class="chakraContainer">
+            <img src="chakra-chart.png" class="chakraImage" alt="Chakra Chart">
+            <div class="chakraOverlay"></div>
+          </div>
+
+          <div class="sampleTicksRight">
+            <label class="tick"><input type="checkbox" id="tick1" /> Please</label>
+            <label class="tick"><input type="checkbox" id="tick2" /> By Your Grace</label>
+            <label class="tick"><input type="checkbox" id="tick3" /> I Affirm</label>
+            <hr class="tickSeparator">
+            <label class="tick"><input type="checkbox" id="tick4" /> Gestures</label>
+            <label class="tick"><input type="checkbox" id="tick5" /> Elements</label>
+            <label class="tick"><input type="checkbox" id="tick6" /> Indian terms</label>
+            <hr class="tickSeparator">
+            <label class="tick"><input type="checkbox" id="tick7" /> Workout</label>
+            <label class="tick"><input type="checkbox" id="tick8" /> Growth</label>
+            <label class="tick"><input type="checkbox" id="tick9" /> Introspection</label>
+            <hr class="tickSeparator">
+            <label class="tick"><input type="checkbox" id="tick10" /> Basic</label>
+            <label class="tick"><input type="checkbox" id="tick11" /> Intermediate</label>
+            <label class="tick"><input type="checkbox" id="tick12" /> Advanced</label>
+
+            <input id="tagInput" type="text" class="tagInputSmall" placeholder="Add tag (Enter)" />
+            <div class="tagSelectRow">
+              <select id="tagSelect" class="tagSelectSmall">
+                <option value="">Existing tag…</option>
+              </select>
+              <button id="useTagBtn" class="ghost tagPlusBtn">＋</button>
+            </div>
+            <div id="tagChips" class="chips"></div>
+          </div>
+        </div>
+
+        <!--div class="recorder">
+          <div class="row">
+            <button id="recordBtn">● Record</button>
+            <button id="stopBtn" class="ghost" disabled>■ Stop</button>
+          </div>
+          <audio id="audioPreview" controls class="audioPreview" style="display:none"></audio>
+          <div class="tiny" id="recHint">Record an audio note; we’ll transcribe it automatically.</div>
+        </div-->
+
+        <textarea id="noteText" placeholder="Transcript will appear here (editable)…"></textarea>
+
+				<div class="recorder">
+					<!--div class="row">
+						<button id="recordBtn" class="iconBtn rec" title="Record">
+							<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6"/></svg>
+						</button>
+
+						<button id="stopBtn" class="iconBtn" title="Stop" disabled>
+							<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10v10H7z"/></svg>
+						</button>
+					</div-->
+
+					<audio id="audioPreview" controls class="audioPreview" style="display:none"></audio>
+					<div class="tiny" id="recHint">Audio clip transcription enabled.</div>
+				</div>
+				<div class="row" style="margin-top:8px; gap:8px;">
+					<div style="flex:1;">
+						<label class="tiny" for="langSelect">Language</label>
+						<select id="langSelect">
+							<option value="en">English</option>
+							<option value="it">Italiano</option>
+						</select>
+					</div>
+					<div style="flex:1;">
+						<label class="tiny" for="voiceSelect">Voice</label>
+						<select id="voiceSelect">
+							<option value="Marco">Marco</option>
+							<option value="Soma">Soma</option>
+						</select>
+					</div>
+					<div style="display:flex; align-items:flex-end;">
+						<label class="tick" style="margin:0;">
+							<input type="checkbox" id="enhanceAudio" />
+							Enhance audio
+						</label>
+					</div>
+				</div>
+				<div id="enhanceControls" style="margin-top:6px; display:none;">
+					<div class="tiny" style="display:flex; justify-content:space-between; gap:8px;">
+						<span>Trim sensitivity</span>
+						<span id="trimVal">0.004</span>
+					</div>
+					<input id="trimSlider" type="range" min="0.001" max="0.020" step="0.001" value="0.004" />
+				</div>
+
+      </section>
+
+      <section class="target">
+        <label for="playerSelect">Target</label>
+        <select id="playerSelect"></select>
+      </section>
+
+      <section class="notes">
+        <h2>Notes</h2>
+        <div class="row">
+          <button id="clearNotes" class="danger ghost">Clear</button>
+        </div>
+        <div id="notesList" class="list"></div>
+      </section>
+
+			<details class="debugBox">
+				<summary>Debug</summary>
+				<textarea id="debugLog" readonly style="width:100%;height:160px;"></textarea>
+				<div class="row" style="margin-top:8px; gap:8px;">
+					<button id="clearDebug" class="ghost">Clear log</button>
+					<button id="setExportFolder" class="ghost">Set Export Folder</button>
+				</div>
+			</details>
+
+
+      <footer>
+        <div class="tiny">Notes are saved per page URL.</div>
+      </footer>
+    </div>
+
+    <script src="sidepanel.js"></script>
+  </body>
+</html>

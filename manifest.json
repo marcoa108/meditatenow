@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "Media Notes Recorder 2.7",
+  "version": "2.7.0",
+  "description": "Sidebar controller for embedded YouTube/Vimeo/SoundCloud with timestamped notes.",
+  "permissions": ["storage", "activeTab", "scripting", "sidePanel", "tabs", "downloads"],
+  "host_permissions": ["<all_urls>"],
+	"action": {
+    "default_title": "Media Notes"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["contentScript.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["injectedBridge.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
