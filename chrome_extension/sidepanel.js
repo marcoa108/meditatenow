@@ -1265,7 +1265,7 @@ async function addNote() {
   audioPreview.pause();
   audioPreview.src = '';
   audioPreview.style.display = 'none';
-  recHint.textContent = 'Audio note transcription enabled.';
+  recHint.textContent = 'Record an audio note; we\'ll transcribe it automatically.';
 
   renderNotes(note);
   renderTagSelect(extractExistingTags(note ? [note] : []));
@@ -1353,13 +1353,7 @@ async function exportNotes() {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
   const filename = `media-notes-${timestamp}.json`;
 
-  const payload = {
-    page: pageKey,
-    exportedAt: new Date().toISOString(),
-    note
-  };
-
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify(note, null, 2)], { type: 'application/json' });
 
   // Try to use stored directory handle first
   let dirHandle = exportDirectoryHandle || await loadDirectoryHandle();
@@ -1415,13 +1409,7 @@ async function exportSingleNote(note) {
   const timeStr = fmtTime(note.time).replace(':', '-');
   const filename = `note-${timeStr}-${timestamp}.json`;
 
-  const payload = {
-    page: pageKey,
-    exportedAt: new Date().toISOString(),
-    note
-  };
-
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify(note, null, 2)], { type: 'application/json' });
 
   // Try to use stored directory handle first
   let dirHandle = exportDirectoryHandle || await loadDirectoryHandle();
