@@ -1241,7 +1241,7 @@ async function addNote() {
   audioPreview.pause();
   audioPreview.src = '';
   audioPreview.style.display = 'none';
-  recHint.textContent = 'Record an audio note; we'll transcribe it automatically.';
+  recHint.textContent = 'Audio note transcription enabled.';
 
   renderNotes(notes);
   renderTagSelect(extractExistingTags(notes));
