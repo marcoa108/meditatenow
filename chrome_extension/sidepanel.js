@@ -35,6 +35,7 @@ const tick9 = document.getElementById('tick9');
 const tick10 = document.getElementById('tick10');
 const tick11 = document.getElementById('tick11');
 const tick12 = document.getElementById('tick12');
+const tick13 = document.getElementById('tick13');
 
 let selectedTags = []; // tags to apply to the next note
 let exportDirectoryHandle = null; // Persistent export folder
@@ -395,10 +396,26 @@ function noteStorageKey() {
   return `notes::${pageKey}`;
 }
 
-async function loadNotes() {
+async function loadNote() {
   const key = noteStorageKey();
   const data = await chrome.storage.local.get([key]);
-  return data[key] || [];
+  const raw = data[key];
+
+  if (Array.isArray(raw)) {
+    return raw[0] || null; // legacy array format
+  }
+
+  if (raw && typeof raw === 'object') return raw;
+  return null;
+}
+
+async function saveNote(note) {
+  const key = noteStorageKey();
+  if (!note) {
+    await chrome.storage.local.remove(key);
+  } else {
+    await chrome.storage.local.set({ [key]: note });
+  }
 }
 
 // Build a unique tag list from existing notes to support "existing tag" selection
@@ -514,13 +531,18 @@ function getCategories() {
   return categories;
 }
 
-// Function #6: get level array based on tick10, tick11, tick12
+// Function #6: get level array based on tick10, tick11, tick12 (Literal is standalone)
 function getLevel() {
   const level = [];
   if (tick10.checked) level.push('Basic');
   if (tick11.checked) level.push('Intermediate');
   if (tick12.checked) level.push('Advanced');
   return level;
+}
+
+// Function #6b: standalone Literal flag (not a level)
+function getLiteralFlag() {
+  return !!tick13?.checked;
 }
 
 // --- IndexedDB for audio blobs (audio is saved separately from notes, but linked) ---
@@ -1006,14 +1028,9 @@ function stopRecording() {
   try { mediaRecorder?.stop(); } catch (e) { dbg('mediaRecorder.stop FAILED:', String(e)); }
 }
 
-async function saveNotes(notes) {
-  const key = noteStorageKey();
-  await chrome.storage.local.set({ [key]: notes });
-}
-
-function renderNotes(notes) {
+function renderNotes(note) {
   notesList.innerHTML = '';
-  if (!notes.length) {
+  if (!note) {
     const empty = document.createElement('div');
     empty.className = 'tiny';
     empty.textContent = 'No notes yet.';
@@ -1021,148 +1038,153 @@ function renderNotes(notes) {
     return;
   }
 
-  for (const n of notes) {
-    const item = document.createElement('div');
-    item.className = 'noteItem';
+  const item = document.createElement('div');
+  item.className = 'noteItem';
 
-    const top = document.createElement('div');
-    top.className = 'noteTop';
+  const top = document.createElement('div');
+  top.className = 'noteTop';
 
-    const time = document.createElement('div');
-    time.className = 'noteTime';
-    time.textContent = fmtTime(n.time);
+  const time = document.createElement('div');
+  time.className = 'noteTime';
+  time.textContent = fmtTime(note.time);
 
-    const actions = document.createElement('div');
+  const actions = document.createElement('div');
 
-    const btnGo = document.createElement('button');
-    btnGo.className = 'ghost';
-    btnGo.textContent = 'Go';
-    btnGo.title = 'Seek to time';
-    btnGo.addEventListener('click', async () => {
-      const target = getTargetFromSelect();
-      await sendToTab({ type: 'CONTROL_SEEK', time: n.time, target });
-      await refreshTime();
-    });
+  const btnGo = document.createElement('button');
+  btnGo.className = 'ghost';
+  btnGo.textContent = 'Go';
+  btnGo.title = 'Seek to time';
+  btnGo.addEventListener('click', async () => {
+    const target = getTargetFromSelect();
+    await sendToTab({ type: 'CONTROL_SEEK', time: note.time, target });
+    await refreshTime();
+  });
 
-    const btnDel = document.createElement('button');
-    btnDel.className = 'ghost danger';
-    btnDel.textContent = 'Del';
-    btnDel.title = 'Delete note';
-    btnDel.addEventListener('click', async () => {
-      const notes = await loadNotes();
-      const deleting = notes.find(x => x.id === n.id);
-      const next = notes.filter(x => x.id !== n.id);
+  const btnDel = document.createElement('button');
+  btnDel.className = 'ghost danger';
+  btnDel.textContent = 'Del';
+  btnDel.title = 'Delete note';
+  btnDel.addEventListener('click', async () => {
+    const deleting = await loadNote();
 
-      // delete linked audio blob
-      if (deleting?.audio?.id) {
-        try { await deleteAudioBlob(deleting.audio.id); } catch (_) {}
-      }
-
-      await saveNotes(next);
-      renderNotes(next);
-      renderTagSelect(extractExistingTags(next));
-    });
-
-    actions.appendChild(btnGo);
-    actions.appendChild(btnDel);
-
-    top.appendChild(time);
-    top.appendChild(actions);
-
-    const text = document.createElement('div');
-    text.className = 'noteText';
-    text.textContent = n.text;
-
-    const meta = document.createElement('div');
-    meta.className = 'tiny';
-
-    const tags = (n.tags || []).map(t => `#${t}`).join(' ');
-    const ticks = n.ticks || {};
-    const tickMarks = [
-      ticks.sampleTick1 ? '☑︎1' : '☐1',
-      ticks.sampleTick2 ? '☑︎2' : '☐2',
-      ticks.sampleTick3 ? '☑︎3' : '☐3'
-    ].join('  ');
-
-    // Type display
-    const typeStr = (n.type && n.type.length > 0) ? ` · Type: ${n.type.join(', ')}` : '';
-
-    // Features display
-    const featuresStr = (n.features && n.features.length > 0) ? ` · Features: ${n.features.join(', ')}` : '';
-
-    // Categories display
-    const categoriesStr = (n.categories && n.categories.length > 0) ? ` · Categories: ${n.categories.join(', ')}` : '';
-
-    // Level display
-    const levelStr = (n.level && n.level.length > 0) ? ` · Level: ${n.level.join(', ')}` : '';
-
-    // Yantra display (use yantra field if available, otherwise fall back to chakras)
-    const yantraNames = n.yantra && n.yantra.length > 0
-      ? n.yantra.join(', ')
-      : (n.chakras || []).map(id => CHAKRA_POINTS.find(p => p.id === id)?.name || id).join(', ');
-    const yantraInfo = yantraNames ? ` · Yantra: ${yantraNames}` : '';
-
-    const hasAudio = !!n.audio?.id;
-    const lang = n.language ? ` · ${n.language.toUpperCase()}` : '';
-		const dur = (typeof n.clipDuration === 'number' && isFinite(n.clipDuration))
-			? ` · ⏱ ${n.clipDuration.toFixed(1)}s`
-			: '';
-
-		meta.textContent = `${tags}${tags ? '  ·  ' : ''}${tickMarks}${typeStr}${featuresStr}${categoriesStr}${levelStr}${yantraInfo}${hasAudio ? '  ·  🎙️' : ''}${lang}${dur}`;
-
-    item.appendChild(top);
-    item.appendChild(text);
-    // audio playback
-    if (n.audio?.id) {
-      const audioWrap = document.createElement('div');
-      audioWrap.className = 'tiny';
-      audioWrap.style.marginTop = '6px';
-
-      const playBtn = document.createElement('button');
-      playBtn.className = 'ghost';
-      playBtn.textContent = 'Play audio';
-
-      let audioEl = null;
-      let objectUrl = null;
-
-      playBtn.addEventListener('click', async () => {
-        if (!audioEl) {
-          const blob = await loadAudioBlob(n.audio.id);
-          if (!blob) {
-            setStatus('Audio not found (it may have been cleared).');
-            return;
-          }
-          objectUrl = URL.createObjectURL(blob);
-          audioEl = document.createElement('audio');
-          audioEl.controls = true;
-          audioEl.src = objectUrl;
-          audioEl.style.width = '100%';
-          audioEl.addEventListener('ended', () => {
-            // keep controls visible
-          });
-          audioWrap.appendChild(audioEl);
-          playBtn.textContent = 'Hide audio';
-        } else {
-          // toggle
-          if (audioEl.style.display === 'none') {
-            audioEl.style.display = 'block';
-            playBtn.textContent = 'Hide audio';
-          } else {
-            audioEl.pause();
-            audioEl.style.display = 'none';
-            playBtn.textContent = 'Show audio';
-          }
-        }
-      });
-
-      audioWrap.appendChild(playBtn);
-      item.appendChild(audioWrap);
+    // delete linked audio blob
+    if (deleting?.clip?.id) {
+      try { await deleteAudioBlob(deleting.clip.id); } catch (_) {}
     }
 
-    item.appendChild(meta);
+    await saveNote(null);
+    renderNotes(null);
+    renderTagSelect([]);
+  });
 
-    notesList.appendChild(item);
+  actions.appendChild(btnGo);
+  actions.appendChild(btnDel);
+
+  top.appendChild(time);
+  top.appendChild(actions);
+
+  const text = document.createElement('div');
+  text.className = 'noteText';
+  text.textContent = note.clip?.transcript || '';
+
+  const meta = document.createElement('div');
+  meta.className = 'tiny';
+
+  const tags = (note.tags || []).map(t => `#${t}`).join(' ');
+  const ticks = note.ticks || {};
+  const tickMarks = [
+    ticks.sampleTick1 ? '☑︎1' : '☐1',
+    ticks.sampleTick2 ? '☑︎2' : '☐2',
+    ticks.sampleTick3 ? '☑︎3' : '☐3'
+  ].join('  ');
+
+  // Type display
+  const typeStr = (note.type && note.type.length > 0) ? ` · Type: ${note.type.join(', ')}` : '';
+
+  // Features display
+  const featuresStr = (note.features && note.features.length > 0) ? ` · Features: ${note.features.join(', ')}` : '';
+
+  // Categories display
+  const categoriesStr = (note.categories && note.categories.length > 0) ? ` · Categories: ${note.categories.join(', ')}` : '';
+
+  // Level + Literal display (Literal is a separate flag)
+  const levelNames = Array.isArray(note.level) ? note.level.filter(l => l !== 'Literal') : [];
+  const literalFlag = note.literal === true || (Array.isArray(note.level) && note.level.includes('Literal'));
+  const levelStr = levelNames.length > 0 ? ` · Level: ${levelNames.join(', ')}` : '';
+  const literalStr = literalFlag ? ' · Literal' : '';
+
+  // Yantra display (use yantra field if available, otherwise fall back to chakras)
+  const yantraNames = note.yantra && note.yantra.length > 0
+    ? note.yantra.join(', ')
+    : (note.chakras || []).map(id => CHAKRA_POINTS.find(p => p.id === id)?.name || id).join(', ');
+  const yantraInfo = yantraNames ? ` · Yantra: ${yantraNames}` : '';
+
+  const hasAudio = !!note.clip?.id;
+  const lang = note.language ? ` · ${note.language.toUpperCase()}` : '';
+  const dur = (typeof note.clip?.duration === 'number' && isFinite(note.clip.duration))
+    ? ` · ⏱ ${note.clip.duration.toFixed(1)}s`
+    : '';
+
+  meta.textContent = `${tags}${tags ? '  ·  ' : ''}${tickMarks}${typeStr}${featuresStr}${categoriesStr}${levelStr}${literalStr}${yantraInfo}${hasAudio ? '  ·  🎙️' : ''}${lang}${dur}`;
+
+  item.appendChild(top);
+  item.appendChild(text);
+  // audio playback
+  if (note.clip?.id) {
+    const audioWrap = document.createElement('div');
+    audioWrap.className = 'tiny';
+    audioWrap.style.marginTop = '6px';
+
+    const playBtn = document.createElement('button');
+    playBtn.className = 'ghost';
+    playBtn.textContent = 'Play audio';
+
+    let audioEl = null;
+    let objectUrl = null;
+
+    playBtn.addEventListener('click', async () => {
+      if (!audioEl) {
+        const blob = await loadAudioBlob(note.clip.id);
+        if (!blob) {
+          setStatus('Audio not found (it may have been cleared).');
+          return;
+        }
+        objectUrl = URL.createObjectURL(blob);
+        audioEl = document.createElement('audio');
+        audioEl.controls = true;
+        audioEl.src = objectUrl;
+        audioEl.style.width = '100%';
+        audioEl.addEventListener('ended', () => {
+          // keep controls visible
+        });
+        audioWrap.appendChild(audioEl);
+        playBtn.textContent = 'Hide audio';
+      } else {
+        // toggle
+        if (audioEl.style.display === 'none') {
+          audioEl.style.display = 'block';
+          playBtn.textContent = 'Hide audio';
+        } else {
+          audioEl.pause();
+          audioEl.style.display = 'none';
+          playBtn.textContent = 'Show audio';
+        }
+      }
+    });
+
+    audioWrap.appendChild(playBtn);
+    item.appendChild(audioWrap);
   }
+
+  item.appendChild(meta);
+
+  notesList.appendChild(item);
+}
+
+async function fetchTalkMetadata() {
+  const resp = await sendToTab({ type: 'GET_TALK_METADATA' });
+  if (resp?.ok) return resp.meta || {};
+  return {};
 }
 
 async function addNote() {
@@ -1180,48 +1202,60 @@ async function addNote() {
 
   await refreshTime();
 
-  const notes = await loadNotes();
-	const language = langSelect?.value || 'en';
-	const voice = voiceSelect?.value || 'Marco';
-	const mediaUrls = (players || []).map(p => p.src); // from LIST_PLAYERS
-	const clipDuration = draftAudio?.duration ?? null;
+  const previousNote = await loadNote();
+  const language = langSelect?.value || 'en';
+  const voice = voiceSelect?.value || 'Marco';
+  const mediaUrls = (players || []).map(p => p.src); // from LIST_PLAYERS
+  const clipDuration = draftAudio?.duration ?? null;
+  const talkMeta = await fetchTalkMetadata();
 
-	// Generate audio filename if there's audio
-	let audioFilename = null;
-	if (draftAudio) {
-		const timeStr = fmtTime(currentTimeSeconds).replace(':', '-');
-		const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-		const extension = draftAudio.mime?.includes('webm') ? 'webm' :
-		                 draftAudio.mime?.includes('wav') ? 'wav' :
-		                 draftAudio.mime?.includes('mp4') ? 'mp4' : 'webm';
-		audioFilename = `audio-${timeStr}-${timestamp}.${extension}`;
-	}
+  // Generate audio filename if there's audio
+  let audioFilename = null;
+  if (draftAudio) {
+    const timeStr = fmtTime(currentTimeSeconds).replace(':', '-');
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    const extension = draftAudio.mime?.includes('webm') ? 'webm' :
+                     draftAudio.mime?.includes('wav') ? 'wav' :
+                     draftAudio.mime?.includes('mp4') ? 'mp4' : 'webm';
+    audioFilename = `audio-${timeStr}-${timestamp}.${extension}`;
+  }
 
-	const note = {
-		id: crypto.randomUUID(),
-		time: currentTimeSeconds,
-		text,
-		language,
-		mediaUrls,
-		tags: selectedTags.slice(),
-		type: getType(),
-		yantra: getYantra(),
-		features: getFeatures(),
-		categories: getCategories(),
-		level: getLevel(),
-		audio: draftAudio ? {
-			filename: audioFilename,
-			duration: clipDuration,
-			voice,
-		  id: draftAudio.id,
-			mime: draftAudio.mime,
-			createdAt: draftAudio.createdAt
-		} : null,
-		createdAt: Date.now()
-	};
+  const note = {
+    id: crypto.randomUUID(),
+    time: currentTimeSeconds,
+    talk: {
+      page: pageKey,
+      mediaUrls,
+      title: talkMeta.title || null,
+      place: talkMeta.place || null,
+      date: talkMeta.date || null,
+      taxonomy: talkMeta.taxonomy || null
+    },
+    clip: draftAudio ? {
+      filename: audioFilename,
+      duration: clipDuration,
+      voice,
+      id: draftAudio.id,
+      transcript: text,
+      mime: draftAudio.mime
+    } : null,
+    language,
+    tags: selectedTags.slice(),
+    type: getType(),
+    yantra: getYantra(),
+    features: getFeatures(),
+    categories: getCategories(),
+    level: getLevel(),
+    literal: getLiteralFlag(),
+    createdAt: Date.now()
+  };
 
-  notes.unshift(note);
-  await saveNotes(notes);
+  await saveNote(note);
+
+  // Clean up previous audio blob if we replaced the note with a new clip
+  if (previousNote?.clip?.id && previousNote.clip.id !== note.clip?.id) {
+    try { await deleteAudioBlob(previousNote.clip.id); } catch (_) {}
+  }
 
   // reset draft UI - keep tags, ticks, and chakras for next note
   noteText.value = '';
@@ -1231,14 +1265,13 @@ async function addNote() {
   audioPreview.pause();
   audioPreview.src = '';
   audioPreview.style.display = 'none';
-  recHint.textContent = 'Record an audio note; we'll transcribe it automatically.';
+  recHint.textContent = 'Record an audio note; we\'ll transcribe it automatically.';
 
-  renderNotes(notes);
-  renderTagSelect(extractExistingTags(notes));
+  renderNotes(note);
+  renderTagSelect(extractExistingTags(note ? [note] : []));
 
   return note; // Return the created note
 }
-
 // Export folder management using File System Access API
 async function setExportFolder() {
   try {
@@ -1310,19 +1343,17 @@ async function writeFileToDirectory(directoryHandle, filename, blob) {
 }
 
 async function exportNotes() {
-  const notes = await loadNotes();
+  const note = await loadNote();
+  if (!note) {
+    setStatus('No note to export.');
+    return;
+  }
 
   // Create timestamp for filename
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
   const filename = `media-notes-${timestamp}.json`;
 
-  const payload = {
-    page: pageKey,
-    exportedAt: new Date().toISOString(),
-    notes
-  };
-
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify(note, null, 2)], { type: 'application/json' });
 
   // Try to use stored directory handle first
   let dirHandle = exportDirectoryHandle || await loadDirectoryHandle();
@@ -1378,13 +1409,7 @@ async function exportSingleNote(note) {
   const timeStr = fmtTime(note.time).replace(':', '-');
   const filename = `note-${timeStr}-${timestamp}.json`;
 
-  const payload = {
-    page: pageKey,
-    exportedAt: new Date().toISOString(),
-    note
-  };
-
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify(note, null, 2)], { type: 'application/json' });
 
   // Try to use stored directory handle first
   let dirHandle = exportDirectoryHandle || await loadDirectoryHandle();
@@ -1435,17 +1460,17 @@ async function exportSingleNote(note) {
 }
 
 async function exportSingleAudioFile(note) {
-  if (!note.audio || !note.audio.id) return;
+  if (!note.clip || !note.clip.id) return;
 
   try {
-    const blob = await loadAudioBlob(note.audio.id);
+    const blob = await loadAudioBlob(note.clip.id);
     if (!blob) {
       setStatus('Audio not found');
       return;
     }
 
     // Use stored filename
-    const filename = note.audio.filename;
+    const filename = note.clip.filename;
 
     let dirHandle = exportDirectoryHandle || await loadDirectoryHandle();
 
@@ -1477,63 +1502,60 @@ async function exportSingleAudioFile(note) {
 }
 
 async function exportAudioFiles() {
-  const notes = await loadNotes();
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+  const note = await loadNote();
+  if (!note?.clip?.id) return;
 
-  let exportedCount = 0;
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
   let dirHandle = exportDirectoryHandle || await loadDirectoryHandle();
 
-  for (const note of notes) {
-    if (note.audio && note.audio.id) {
+  try {
+    const blob = await loadAudioBlob(note.clip.id);
+    if (!blob) return;
+
+    // Use stored filename if available, otherwise generate one
+    let filename = note.clip.filename;
+    if (!filename) {
+      const timeStr = fmtTime(note.time).replace(':', '-');
+      const extension = note.clip.mime?.includes('webm') ? 'webm' :
+                       note.clip.mime?.includes('wav') ? 'wav' :
+                       note.clip.mime?.includes('mp4') ? 'mp4' : 'webm';
+      filename = `audio-${timeStr}-${timestamp}.${extension}`;
+    }
+
+    // Try to use directory handle first
+    if (dirHandle) {
       try {
-        const blob = await loadAudioBlob(note.audio.id);
-        if (!blob) continue;
-
-        // Use stored filename if available, otherwise generate one
-        let filename = note.audio.filename;
-        if (!filename) {
-          const timeStr = fmtTime(note.time).replace(':', '-');
-          const extension = note.audio.mime?.includes('webm') ? 'webm' :
-                           note.audio.mime?.includes('wav') ? 'wav' :
-                           note.audio.mime?.includes('mp4') ? 'mp4' : 'webm';
-          filename = `audio-${timeStr}-${timestamp}.${extension}`;
-        }
-
-        // Try to use directory handle first
-        if (dirHandle) {
-          try {
-            await writeFileToDirectory(dirHandle, filename, blob);
-            exportedCount++;
-            continue;
-          } catch (err) {
-            console.error('Failed to write audio to directory:', err);
-            // Fall through to downloads API
-          }
-        }
-
-        // Fallback to downloads API
-        const url = URL.createObjectURL(blob);
-        await chrome.downloads.download({
-          url: url,
-          filename: filename,
-          saveAs: false
-        });
-        exportedCount++;
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        await writeFileToDirectory(dirHandle, filename, blob);
+        setStatus('Exported 1 audio file');
+        return;
       } catch (err) {
-        console.error('Failed to export audio:', err);
+        console.error('Failed to write audio to directory:', err);
+        // Fall through to downloads API
       }
     }
-  }
 
-  if (exportedCount > 0) {
-    setStatus(`Exported ${exportedCount} audio file(s)`);
+    // Fallback to downloads API
+    const url = URL.createObjectURL(blob);
+    await chrome.downloads.download({
+      url: url,
+      filename: filename,
+      saveAs: false
+    });
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setStatus('Exported 1 audio file');
+  } catch (err) {
+    console.error('Failed to export audio:', err);
   }
 }
 
 async function clearNotes() {
-  await saveNotes([]);
-  renderNotes([]);
+  const existing = await loadNote();
+  if (existing?.clip?.id) {
+    try { await deleteAudioBlob(existing.clip.id); } catch (_) {}
+  }
+  await saveNote(null);
+  renderNotes(null);
+  renderTagSelect([]);
 }
 
 async function init() {
@@ -1550,9 +1572,9 @@ async function init() {
   await refreshPlayers();
   await refreshTime();
 
-  const notes = await loadNotes();
-  renderNotes(notes);
-  renderTagSelect(extractExistingTags(notes));
+  const note = await loadNote();
+  renderNotes(note);
+  renderTagSelect(extractExistingTags(note ? [note] : []));
   renderTagChips();
   initChakraChart();
 }
@@ -1608,7 +1630,7 @@ btnSaveTop.addEventListener('click', async () => {
     await exportSingleNote(note);
 
     // Export audio file if it exists
-    if (note.audio && note.audio.id) {
+    if (note.clip && note.clip.id) {
       await exportSingleAudioFile(note);
     }
   }

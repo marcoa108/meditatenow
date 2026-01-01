@@ -328,6 +328,26 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       return;
     }
 
+    if (msg?.type === 'GET_TALK_METADATA') {
+      const titleEl = document.querySelector('h1.entry-title');
+      const subtitleEl = document.querySelector('h2.entry-subtitle');
+      const dateEl = document.querySelector('time.entry-date.published');
+      const taxonomyEl = document.querySelector('span.taxonomy-recorded-event-links');
+
+      const title = titleEl?.textContent?.trim() || null;
+      const place = subtitleEl?.querySelector('a')?.textContent?.trim()
+        || subtitleEl?.textContent?.trim()
+        || null;
+      const date = dateEl?.getAttribute('datetime') || null;
+      const taxonomy = taxonomyEl?.textContent?.trim() || null;
+
+      sendResponse({
+        ok: true,
+        meta: { title, place, date, taxonomy }
+      });
+      return;
+    }
+
     sendResponse({ ok: false, error: 'Unknown message type' });
   } catch (err) {
     sendResponse({ ok: false, error: String(err) });
