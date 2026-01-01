@@ -35,6 +35,7 @@ const tick9 = document.getElementById('tick9');
 const tick10 = document.getElementById('tick10');
 const tick11 = document.getElementById('tick11');
 const tick12 = document.getElementById('tick12');
+const tick13 = document.getElementById('tick13');
 
 let selectedTags = []; // tags to apply to the next note
 let exportDirectoryHandle = null; // Persistent export folder
@@ -514,13 +515,18 @@ function getCategories() {
   return categories;
 }
 
-// Function #6: get level array based on tick10, tick11, tick12
+// Function #6: get level array based on tick10, tick11, tick12 (Literal is standalone)
 function getLevel() {
   const level = [];
   if (tick10.checked) level.push('Basic');
   if (tick11.checked) level.push('Intermediate');
   if (tick12.checked) level.push('Advanced');
   return level;
+}
+
+// Function #6b: standalone Literal flag (not a level)
+function getLiteralFlag() {
+  return !!tick13?.checked;
 }
 
 // --- IndexedDB for audio blobs (audio is saved separately from notes, but linked) ---
@@ -1093,8 +1099,11 @@ function renderNotes(notes) {
     // Categories display
     const categoriesStr = (n.categories && n.categories.length > 0) ? ` · Categories: ${n.categories.join(', ')}` : '';
 
-    // Level display
-    const levelStr = (n.level && n.level.length > 0) ? ` · Level: ${n.level.join(', ')}` : '';
+    // Level + Literal display (Literal is a separate flag)
+    const levelNames = Array.isArray(n.level) ? n.level.filter(l => l !== 'Literal') : [];
+    const literalFlag = n.literal === true || (Array.isArray(n.level) && n.level.includes('Literal'));
+    const levelStr = levelNames.length > 0 ? ` · Level: ${levelNames.join(', ')}` : '';
+    const literalStr = literalFlag ? ' · Literal' : '';
 
     // Yantra display (use yantra field if available, otherwise fall back to chakras)
     const yantraNames = n.yantra && n.yantra.length > 0
@@ -1108,7 +1117,7 @@ function renderNotes(notes) {
 			? ` · ⏱ ${n.clipDuration.toFixed(1)}s`
 			: '';
 
-		meta.textContent = `${tags}${tags ? '  ·  ' : ''}${tickMarks}${typeStr}${featuresStr}${categoriesStr}${levelStr}${yantraInfo}${hasAudio ? '  ·  🎙️' : ''}${lang}${dur}`;
+                meta.textContent = `${tags}${tags ? '  ·  ' : ''}${tickMarks}${typeStr}${featuresStr}${categoriesStr}${levelStr}${literalStr}${yantraInfo}${hasAudio ? '  ·  🎙️' : ''}${lang}${dur}`;
 
     item.appendChild(top);
     item.appendChild(text);
@@ -1204,14 +1213,15 @@ async function addNote() {
 		language,
 		mediaUrls,
 		tags: selectedTags.slice(),
-		type: getType(),
-		yantra: getYantra(),
-		features: getFeatures(),
-		categories: getCategories(),
-		level: getLevel(),
-		audio: draftAudio ? {
-			filename: audioFilename,
-			duration: clipDuration,
+                type: getType(),
+                yantra: getYantra(),
+                features: getFeatures(),
+                categories: getCategories(),
+                level: getLevel(),
+                literal: getLiteralFlag(),
+                audio: draftAudio ? {
+                        filename: audioFilename,
+                        duration: clipDuration,
 			voice,
 		  id: draftAudio.id,
 			mime: draftAudio.mime,
